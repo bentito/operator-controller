@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/google/go-containerregistry/pkg/crane"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -29,7 +30,7 @@ func main() {
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()
 
-	log.Printf("registry configured with path %s, listening on %s", imagesPath, registryAddr)
+	log.Printf("push operation configured with images path %s and destination %s", imagesPath, registryAddr)
 
 	bundlesFullPath := fmt.Sprintf("%s/%s", imagesPath, bundlesSubPath)
 	catalogsFullPath := fmt.Sprintf("%s/%s", imagesPath, catalogsSubPath)
@@ -42,16 +43,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to build catalogs: %s", err.Error())
 	}
-
 	// Push the images
-	// TODO without insecure option
 	for name, image := range bundles {
-		if err := crane.Push(image, fmt.Sprintf("%s/%s", registryAddr, name), crane.Insecure); err != nil {
+		if err := crane.Push(image, fmt.Sprintf("%s/%s", registryAddr, name)); err != nil {
 			log.Fatalf("failed to push bundle images: %s", err.Error())
 		}
 	}
 	for name, image := range catalogs {
-		if err := crane.Push(image, fmt.Sprintf("%s/%s", registryAddr, name), crane.Insecure); err != nil {
+		if err := crane.Push(image, fmt.Sprintf("%s/%s", registryAddr, name)); err != nil {
 			log.Fatalf("failed to push catalog images: %s", err.Error())
 		}
 	}
@@ -60,26 +59,25 @@ func main() {
 }
 
 func buildBundles(path string) (map[string]v1.Image, error) {
-	bundles, err := processImageDirTree(path, "bundles/registry-v1/")
+	bundles, err := processImageDirTree(path)
 	if err != nil {
 		return nil, err
 	}
+	mutatedMap := make(map[string]v1.Image, 0)
 	// Apply required bundle labels
 	for key, img := range bundles {
-		//TODO
-		labels, err := getBundleLabels(fmt.Sprintf("%s/%s", path, "prometheus-operator/v1.0.0/metadata/annotations.yaml"))
+		// Replace ':' between image name and image tag for file path
+		metadataPath := strings.Replace(key, ":", "/", 1)
+		labels, err := getBundleLabels(fmt.Sprintf("%s/%s/%s", path, metadataPath, "metadata/annotations.yaml"))
 		if err != nil {
 			return nil, err
 		}
-		cfg := v1.Config{
-			Labels: labels,
-		}
-		bundles[key], err = mutate.Config(img, cfg)
+		mutatedMap[fmt.Sprintf("bundles/registry-v1/%s", key)], err = mutate.Config(img, v1.Config{Labels: labels})
 		if err != nil {
 			return nil, fmt.Errorf("failed to apply image labels: %w", err)
 		}
 	}
-	return bundles, nil
+	return mutatedMap, nil
 }
 
 type bundleAnnotations struct {
@@ -100,10 +98,11 @@ func getBundleLabels(path string) (map[string]string, error) {
 }
 
 func buildCatalogs(path string) (map[string]v1.Image, error) {
-	catalogs, err := processImageDirTree(path, "e2e/")
+	catalogs, err := processImageDirTree(path)
 	if err != nil {
 		return nil, err
 	}
+	mutatedMap := make(map[string]v1.Image, 0)
 	// Apply required catalog label
 	for key, img := range catalogs {
 		cfg := v1.Config{
@@ -111,15 +110,15 @@ func buildCatalogs(path string) (map[string]v1.Image, error) {
 				"operators.operatorframework.io.index.configs.v1": "/configs",
 			},
 		}
-		catalogs[key], err = mutate.Config(img, cfg)
+		mutatedMap[fmt.Sprintf("e2e/%s", key)], err = mutate.Config(img, cfg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to apply image labels: %w", err)
 		}
 	}
-	return catalogs, nil
+	return mutatedMap, nil
 }
 
-func processImageDirTree(path string, repoPrefix string) (map[string]v1.Image, error) {
+func processImageDirTree(path string) (map[string]v1.Image, error) {
 	imageMap := make(map[string]v1.Image, 0)
 	images, err := os.ReadDir(path)
 	if err != nil {
@@ -153,7 +152,7 @@ func processImageDirTree(path string, repoPrefix string) (map[string]v1.Image, e
 			if err != nil {
 				return nil, fmt.Errorf("failed to generate image: %w", err)
 			}
-			imageMap[fmt.Sprintf("%s%s:%s", repoPrefix, entry.Name(), tag.Name())] = image
+			imageMap[fmt.Sprintf("%s:%s", entry.Name(), tag.Name())] = image
 		}
 	}
 	return imageMap, nil

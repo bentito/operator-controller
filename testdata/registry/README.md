@@ -8,9 +8,8 @@ Usage of registry:
       --registry-address string   The address the registry binds to. (default ":12345")
 ```
 
-<!--TODO makes these arguments-->
-The server key and cert should be placed in:
+The server key and cert locations should be set under the following environment variables:
 ```
-	certPath = "/certs/tls.crt"
-	keyPath  = "/certs/tls.key"
+	REGISTRY_HTTP_TLS_CERTIFICATE
+	REGISTRY_HTTP_TLS_KEY
 ```

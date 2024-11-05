@@ -167,8 +167,8 @@ test-unit: $(SETUP_ENVTEST) #HELP Run the unit tests
 
 E2E_REGISTRY_IMAGE=localhost/e2e-test-registry:devel
 image-registry: ## Build the testdata catalog used for e2e tests and push it to the image registry
-	go build -o ./testdata/registry/bin/registry ./testdata/registry/registry.go
-	go build -o ./testdata/push/bin/push         ./testdata/push/push.go
+	go build $(GO_BUILD_FLAGS) -tags '$(GO_BUILD_TAGS)' -ldflags '$(GO_BUILD_LDFLAGS)' -gcflags '$(GO_BUILD_GCFLAGS)' -asmflags '$(GO_BUILD_ASMFLAGS)' -o ./testdata/registry/bin/registry ./testdata/registry/registry.go
+	go build $(GO_BUILD_FLAGS) -tags '$(GO_BUILD_TAGS)' -ldflags '$(GO_BUILD_LDFLAGS)' -gcflags '$(GO_BUILD_GCFLAGS)' -asmflags '$(GO_BUILD_ASMFLAGS)' -o ./testdata/push/bin/push         ./testdata/push/push.go
 	$(CONTAINER_RUNTIME) build -f ./testdata/Dockerfile -t $(E2E_REGISTRY_IMAGE) ./testdata
 	$(CONTAINER_RUNTIME) save $(E2E_REGISTRY_IMAGE) | $(KIND) load image-archive /dev/stdin --name $(KIND_CLUSTER_NAME)
 	./testdata/build-test-registry.sh $(E2E_REGISTRY_NAMESPACE) $(E2E_REGISTRY_NAME) $(E2E_REGISTRY_IMAGE)
@@ -181,6 +181,8 @@ image-registry: ## Build the testdata catalog used for e2e tests and push it to 
 .PHONY: test-e2e
 test-e2e: KIND_CLUSTER_NAME := operator-controller-e2e
 test-e2e: KUSTOMIZE_BUILD_DIR := config/overlays/e2e
+test-e2e: GOOS=linux
+test-e2e: GOARCH=amd64
 test-e2e: GO_BUILD_FLAGS := -cover
 test-e2e: run image-registry e2e e2e-coverage kind-clean #HELP Run e2e test suite on local kind cluster
 

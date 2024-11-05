@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/google/go-containerregistry/pkg/registry"
@@ -11,8 +12,8 @@ import (
 )
 
 const (
-	certPath = "/certs/tls.crt"
-	keyPath  = "/certs/tls.key"
+	certEnv = "REGISTRY_HTTP_TLS_CERTIFICATE"
+	keyEnv  = "REGISTRY_HTTP_TLS_KEY"
 )
 
 func main() {
@@ -30,7 +31,7 @@ func main() {
 		WriteTimeout: 60 * time.Second,
 	}
 
-	err := s.ListenAndServeTLS(certPath, keyPath)
+	err := s.ListenAndServeTLS(os.Getenv(certEnv), os.Getenv(keyEnv))
 	if err != nil {
 		log.Fatalf("failed to start image registry: %s", err.Error())
 	}

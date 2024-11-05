@@ -5,9 +5,9 @@ set -o nounset
 set -o pipefail
 
 help="
-image-registry.sh is a script to stand up an image registry within a cluster.
+build-test-registry.sh is a script to stand up an image registry within a cluster.
 Usage:
-  image-registry.sh [NAMESPACE] [NAME] [IMAGE]
+  build-test-registry.sh [NAMESPACE] [NAME] [IMAGE]
 
 Argument Descriptions:
   - NAMESPACE is the namespace that should be created and is the namespace in which the image registry will be created
@@ -122,16 +122,14 @@ spec:
         command:
         - /push
         args: 
-        - "--registry-address=${name}:5000"
+        - "--registry-address=${name}.${namespace}.svc:5000"
         - "--images-path=/images"
         volumeMounts:
         - name: certs-vol
           mountPath: "/certs"
         env:
-        - name: REGISTRY_HTTP_TLS_CERTIFICATE
-          value: "/certs/tls.crt"
-        - name: REGISTRY_HTTP_TLS_KEY
-          value: "/certs/tls.key"
+        - name: SSL_CERT_DIR
+          value: "/certs/"
       volumes:
         - name: certs-vol
           secret:

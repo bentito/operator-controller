@@ -15,7 +15,9 @@ $ tree ./testdata/images/
 ./testdata/images/
 ├── bundles
 │   └── prometheus-operator
-│       └── v2.0.0
+│       └── v1.0.0
+│           ├── metadata
+│           │   └── annotations.yaml
 │           └── manifests
 │               └── example.yaml
 └── catalogs
@@ -29,4 +31,16 @@ $ tree ./testdata/images/
 ```
 The inside of each tag folder will be placed directly into `/` of the built container i.e. `test-catalog:v1` will have `/configs/catalog.yaml`. 
 
-To add a new image or tag to the tool, simply create the folders required and populate them with the files to be mounted - no other action should be necessary.
+To add a new image or tag for the tool, create the folders required and populate them with the files to be mounted. Bundle images requiring metadata should contain a `metadata` folder with `annotations.yaml`. Example content:
+```yaml
+annotations:
+  # Core bundle annotations.
+  operators.operatorframework.io.bundle.mediatype.v1: registry+v1
+  operators.operatorframework.io.bundle.manifests.v1: manifests/
+  operators.operatorframework.io.bundle.metadata.v1: metadata/
+  operators.operatorframework.io.bundle.package.v1: prometheus
+  operators.operatorframework.io.bundle.channels.v1: beta
+  operators.operatorframework.io.metrics.builder: operator-sdk-v1.28.0
+  operators.operatorframework.io.metrics.mediatype.v1: metrics+v1
+  operators.operatorframework.io.metrics.project_layout: unknown
+```
